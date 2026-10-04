@@ -1,7 +1,7 @@
 {
-  "name": "Pistachio & Cardamom Loaf",
-  "short_name": "Pistachio Loaf",
-  "description": "Order the pistachio-cardamom upside-down loaf, baked to order in Washington, DC.",
+  "name": "Lowzineh",
+  "short_name": "Lowzineh",
+  "description": "Order the Lowzineh pistachio-cardamom honey loaf, baked to order in Washington, DC.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#F4F1E8",

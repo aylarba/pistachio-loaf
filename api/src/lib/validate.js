@@ -1,8 +1,10 @@
 // Validates an order request body. Returns { ok, errors, order }.
+// Lowzineh delivers only (no pickup), within Washington, DC.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Washington, DC ZIP codes (200xx and the 203xx-205xx federal/PO ranges).
 const DC_ZIP_RE = /^20(0\d\d|[2-5]\d\d)$/;
+const PHONE_RE = /^[+()\-.\s\d]{7,20}$/;
 
 const clean = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -19,12 +21,14 @@ export function validateOrder(body, { allowedDates, maxPerOrder }) {
 
   if (!name) errors.name = "Enter your name.";
   if (!EMAIL_RE.test(email)) errors.email = "Enter a valid email address.";
+  if (!PHONE_RE.test(phone) || phone.replace(/\D/g, "").length < 10) {
+    errors.phone = "Enter a phone number so we can reach you on delivery day.";
+  }
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > maxPerOrder) {
     errors.quantity = `Choose between 1 and ${maxPerOrder} loaves.`;
   }
   if (!allowedDates.includes(date)) errors.date = "Choose one of the available dates.";
-  // Delivery only (no pickup). Every order needs a DC address.
-  const method = "delivery";
+
   const a = b.address && typeof b.address === "object" ? b.address : {};
   const address = {
     line1: clean(a.line1, 120),
@@ -40,10 +44,10 @@ export function validateOrder(body, { allowedDates, maxPerOrder }) {
   return {
     ok,
     errors,
-    order: ok ? { name, email, phone, date, method, notes, quantity, address } : null,
+    order: ok ? { name, email, phone, date, notes, quantity, address } : null,
   };
 }
 
 export function orderTotalCents(order, { priceCents, deliveryFeeCents }) {
-  return order.quantity * priceCents + (order.method === "delivery" ? deliveryFeeCents : 0);
+  return order.quantity * priceCents + deliveryFeeCents;
 }

@@ -84,3 +84,28 @@ input[type="radio"] { width: 20px; height: 20px; accent-color: var(--pistachio);
   .row, .facts { grid-template-columns: minmax(0, 1fr); }
   .form-card { padding: 22px; }
 }
+
+/* Venmo step */
+.placed-title { font-size: 30px; }
+.pay-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.pay-facts dt { font-size: 14px; color: var(--muted); }
+.pay-facts dd { margin: 0; font-weight: 600; word-break: break-word; }
+.btn-venmo { background: #0B6FB8; }
+.btn-venmo:hover { background: #08588F; }
+
+/* Admin */
+.admin { padding-top: 40px; padding-bottom: 64px; display: flex; flex-direction: column; gap: 20px; }
+.admin h1 { font-size: 48px; }
+.admin-login { max-width: 420px; }
+.admin-head { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+.admin-tools { display: flex; gap: 10px; }
+.btn-quiet { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.btn-quiet:hover { background: var(--pale); color: var(--ink); }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tab { font: inherit; background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; min-height: 44px; cursor: pointer; color: var(--ink); }
+.tab-on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.order-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.order-item { display: flex; flex-direction: column; gap: 6px; }
+.order-top { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; font-size: 18px; }
+.order-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+@media (max-width: 560px) { .pay-facts { grid-template-columns: minmax(0, 1fr); } }

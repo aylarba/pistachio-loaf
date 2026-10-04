@@ -3,15 +3,9 @@ import { site } from "./site.js";
 import { getAvailability, money, demoMode } from "./api.js";
 import OrderForm from "./components/OrderForm.jsx";
 
-function useOrderStatus() {
-  const [status] = useState(() => new URLSearchParams(window.location.search).get("order"));
-  return status; // "success" | "cancelled" | null
-}
-
 export default function App() {
   const [availability, setAvailability] = useState(null);
   const [loadError, setLoadError] = useState("");
-  const status = useOrderStatus();
 
   useEffect(() => {
     getAvailability()
@@ -31,17 +25,6 @@ export default function App() {
           <a className="btn" href="#order">Order</a>
         </nav>
       </header>
-
-      {status === "success" && (
-        <div className="banner banner-ok" role="status">
-          <div className="wrap">Thank you! Your order is confirmed. A receipt is on its way to your email.</div>
-        </div>
-      )}
-      {status === "cancelled" && (
-        <div className="banner" role="status">
-          <div className="wrap">Checkout was cancelled and you weren't charged. Your details are below if you'd like to try again.</div>
-        </div>
-      )}
 
       <main>
         <section className="wrap hero">
@@ -104,13 +87,11 @@ export default function App() {
             <div className="order-text">
               <h2>Order a loaf</h2>
               <p>Every loaf is baked to order and delivered to your door, anywhere in Washington, DC.</p>
-              <p>
-                <strong>Delivery:</strong> {site.deliveryDays}
-                {availability?.deliveryFeeCents ? ` (${money(availability.deliveryFeeCents)} fee)` : ""}
-              </p>
-              {demoMode && (
-                <p className="note">Online ordering opens soon. Until then, email {site.email} to order.</p>
-              )}
+              {availability?.deliveryFeeCents ? (
+                <p><strong>Delivery:</strong> {money(availability.deliveryFeeCents)}</p>
+              ) : null}
+              <p>Pay easily with Venmo after you place your order.</p>
+              {demoMode && <p className="note">Online ordering opens soon.</p>}
             </div>
             {loadError ? (
               <div className="form-card"><p className="error">{loadError}</p></div>

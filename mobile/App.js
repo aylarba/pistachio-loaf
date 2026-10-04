@@ -1,11 +1,10 @@
-// Pistachio Loaf mobile app (Expo / React Native).
-// Uses the same API as the website and opens Stripe Checkout in an in-app browser.
+// Lowzineh mobile app (Expo / React Native).
+// Uses the same API as the website. After ordering, it opens Venmo to pay.
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import * as WebBrowser from "expo-web-browser";
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
 
@@ -49,6 +48,7 @@ export default function App() {
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [placed, setPlaced] = useState(null);
 
   useEffect(() => {
     if (!API_URL) { setLoadError("Set EXPO_PUBLIC_API_URL to your API address."); return; }
@@ -66,10 +66,10 @@ export default function App() {
     [data, form.quantity]
   );
 
-  async function checkout() {
+  async function placeOrder() {
     setBusy(true); setMessage("");
     try {
-      const res = await fetch(`${API_URL}/checkout`, {
+      const res = await fetch(`${API_URL}/orders`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -80,7 +80,8 @@ export default function App() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) { setErrors(body.fields || {}); setMessage(body.error || "Something went wrong."); return; }
-      await WebBrowser.openBrowserAsync(body.checkoutUrl);
+      setPlaced(body);
+      Linking.openURL(body.venmoUrl).catch(() => {});
     } catch {
       setMessage("No connection. Check your internet and try again.");
     } finally {
@@ -93,6 +94,7 @@ export default function App() {
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
         <Text style={s.where}>Baked to order in Washington, DC</Text>
+        <Text style={s.brand}>Lowzineh</Text>
         <Text style={s.h1}>Pistachio & Cardamom Upside-Down Loaf</Text>
         <Text style={s.body}>
           Almond flour, ground pistachios and fresh cardamom, sweetened only with honey and topped with caramelized almonds.
@@ -101,7 +103,16 @@ export default function App() {
         <Text style={s.allergen}>Contains: tree nuts (almond, pistachio), eggs, milk.</Text>
 
         <View style={s.card}>
-          {loadError ? <Text style={s.error}>{loadError}</Text> : !data ? <ActivityIndicator color={C.pistachio} /> : (
+          {placed ? (
+            <>
+              <Text style={s.price}>Almost done: pay with Venmo</Text>
+              <Text style={s.body}>Order {placed.code} · {money(placed.totalCents)}</Text>
+              <Text style={s.body}>Send {money(placed.totalCents)} to @{placed.venmoUsername} with {placed.code} in the note. Your loaves are held for a few hours.</Text>
+              <Pressable style={[s.btn, s.btnVenmo]} onPress={() => Linking.openURL(placed.venmoUrl)} accessibilityRole="button">
+                <Text style={s.btnText}>Pay {money(placed.totalCents)} with Venmo</Text>
+              </Pressable>
+            </>
+          ) : loadError ? <Text style={s.error}>{loadError}</Text> : !data ? <ActivityIndicator color={C.pistachio} /> : (
             <>
               <Text style={s.label}>Date</Text>
               <View style={s.wrapRow}>
@@ -122,7 +133,7 @@ export default function App() {
 
               <Field label="Name" value={form.name} onChangeText={(v) => set("name", v)} autoComplete="name" error={errors.name} />
               <Field label="Email" value={form.email} onChangeText={(v) => set("email", v)} autoComplete="email" keyboardType="email-address" autoCapitalize="none" error={errors.email} />
-              <Field label="Phone (optional)" value={form.phone} onChangeText={(v) => set("phone", v)} autoComplete="tel" keyboardType="phone-pad" />
+              <Field label="Phone" value={form.phone} onChangeText={(v) => set("phone", v)} autoComplete="tel" keyboardType="phone-pad" error={errors.phone} />
               <Field label="Delivery address (Washington, DC)" value={form.line1} onChangeText={(v) => set("line1", v)} autoComplete="street-address" error={errors.address} />
               <Field label="Apt or unit (optional)" value={form.line2} onChangeText={(v) => set("line2", v)} />
               <Field label="ZIP code" value={form.zip} onChangeText={(v) => set("zip", v)} keyboardType="number-pad" autoComplete="postal-code" />
@@ -130,10 +141,10 @@ export default function App() {
 
               <View style={s.total}><Text style={s.body}>Total</Text><Text style={s.totalNum}>{money(total)}</Text></View>
               {message ? <Text style={s.error}>{message}</Text> : null}
-              <Pressable style={[s.btn, busy && { opacity: 0.7 }]} onPress={checkout} disabled={busy} accessibilityRole="button">
-                <Text style={s.btnText}>{busy ? "Opening checkout…" : "Continue to payment"}</Text>
+              <Pressable style={[s.btn, busy && { opacity: 0.7 }]} onPress={placeOrder} disabled={busy} accessibilityRole="button">
+                <Text style={s.btnText}>{busy ? "Placing order…" : "Place order"}</Text>
               </Pressable>
-              <Text style={s.note}>Delivery within Washington, DC only. Total includes delivery.</Text>
+              <Text style={s.note}>Delivery within Washington, DC only. You'll pay with Venmo next.</Text>
             </>
           )}
         </View>
@@ -145,6 +156,7 @@ export default function App() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.ground },
   page: { padding: 22, gap: 12 },
+  brand: { fontSize: 22, fontWeight: "700", color: C.ink, fontFamily: "Georgia" },
   where: { color: C.rose, fontWeight: "600" },
   h1: { fontSize: 36, lineHeight: 40, fontWeight: "700", color: C.ink, fontFamily: "Georgia" },
   body: { fontSize: 17, lineHeight: 25, color: C.ink },
@@ -166,6 +178,7 @@ const s = StyleSheet.create({
   total: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", borderTopWidth: 1, borderTopColor: C.pale, paddingTop: 12, marginTop: 6 },
   totalNum: { fontSize: 26, fontWeight: "700", color: C.ink, fontFamily: "Georgia" },
   btn: { backgroundColor: C.pistachio, borderRadius: 999, minHeight: 52, alignItems: "center", justifyContent: "center" },
+  btnVenmo: { backgroundColor: "#0B6FB8" },
   btnText: { color: C.white, fontSize: 17, fontWeight: "600" },
   note: { fontSize: 14, color: C.muted },
 });

@@ -1,6 +1,6 @@
 # Mobile app (Expo)
 
-A React Native app that uses the same API as the website and opens Stripe Checkout in an in-app browser.
+A React Native app for Lowzineh. It uses the same API as the website and opens Venmo to pay.
 
 ```bash
 cd mobile
@@ -10,7 +10,7 @@ cp .env.example .env        # set EXPO_PUBLIC_API_URL
 npx expo start              # scan the QR code with Expo Go on your phone
 ```
 
-Before publishing, change `bundleIdentifier` / `package` in `app.json` to your own reverse domain (e.g. `com.yourbakery.pistachioloaf`).
+`bundleIdentifier` / `package` in `app.json` are set to `com.lowzineh.app`; change them if that ID is taken.
 
 ## Publishing to the App Store
 

@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Pistachio Loaf",
-    "slug": "pistachio-loaf",
+    "name": "Lowzineh",
+    "slug": "lowzineh",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "../web/public/icon-512.png",
     "splash": { "backgroundColor": "#F4F1E8" },
     "ios": {
-      "bundleIdentifier": "com.yourbakery.pistachioloaf",
+      "bundleIdentifier": "com.lowzineh.app",
       "supportsTablet": false
     },
     "android": {
-      "package": "com.yourbakery.pistachioloaf"
+      "package": "com.lowzineh.app"
     }
   }
 }

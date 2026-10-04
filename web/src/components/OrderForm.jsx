@@ -1,32 +1,47 @@
 import { useMemo, useState } from "react";
-import { startCheckout, money, formatDate } from "../api.js";
+import { placeOrder, money, formatDate } from "../api.js";
 
-const initial = {
-  name: "",
-  email: "",
-  phone: "",
-  quantity: 1,
-  date: "",
-  line1: "",
-  line2: "",
-  zip: "",
-  notes: "",
-};
+const initial = { name: "", email: "", phone: "", quantity: 1, date: "", line1: "", line2: "", zip: "", notes: "" };
+
+function PayWithVenmo({ placed, availability }) {
+  const deadline = new Date(placed.expiresAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return (
+    <div className="form-card" role="status">
+      <h3 className="placed-title">Almost done: pay with Venmo</h3>
+      <p>
+        Your loaves are held until <strong>{deadline}</strong>. Your order is confirmed once payment arrives.
+      </p>
+      <dl className="pay-facts">
+        <div><dt>Order</dt><dd>{placed.code}</dd></div>
+        <div><dt>Amount</dt><dd>{money(placed.totalCents)}</dd></div>
+        <div><dt>Venmo</dt><dd>@{placed.venmoUsername}</dd></div>
+      </dl>
+      <a className="btn btn-lg btn-venmo" href={placed.venmoUrl} target="_blank" rel="noopener noreferrer">
+        Pay {money(placed.totalCents)} with Venmo
+      </a>
+      <p className="note">
+        The button opens Venmo with everything filled in. If it doesn't, send {money(placed.totalCents)} to
+        @{placed.venmoUsername} with <strong>{placed.code}</strong> in the note.
+        {availability.paymentWindowHours ? ` Unpaid orders are released after ${availability.paymentWindowHours} hours.` : ""}
+      </p>
+    </div>
+  );
+}
 
 export default function OrderForm({ availability }) {
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [placed, setPlaced] = useState(null);
 
   const openDates = availability.dates.filter((d) => d.remaining > 0);
   const selected = availability.dates.find((d) => d.date === form.date);
   const maxQty = Math.min(availability.maxPerOrder, selected ? selected.remaining : availability.maxPerOrder);
-
-  const total = useMemo(() => {
-    const loaves = form.quantity * availability.priceCents;
-    return loaves + availability.deliveryFeeCents;
-  }, [form.quantity, availability]);
+  const total = useMemo(
+    () => form.quantity * availability.priceCents + availability.deliveryFeeCents,
+    [form.quantity, availability]
+  );
 
   const update = (field) => (e) => {
     const value = field === "quantity" ? Number(e.target.value) : e.target.value;
@@ -39,7 +54,7 @@ export default function OrderForm({ availability }) {
     setMessage("");
     setSubmitting(true);
     try {
-      const payload = {
+      const result = await placeOrder({
         name: form.name,
         email: form.email,
         phone: form.phone,
@@ -47,24 +62,25 @@ export default function OrderForm({ availability }) {
         date: form.date,
         notes: form.notes,
         address: { line1: form.line1, line2: form.line2, zip: form.zip },
-      };
-      const { checkoutUrl } = await startCheckout(payload);
-      window.location.assign(checkoutUrl);
+      });
+      setPlaced(result);
     } catch (err) {
       setErrors(err.fields || {});
       setMessage(err.message);
+    } finally {
       setSubmitting(false);
     }
   }
 
-  const fieldError = (key) =>
-    errors[key] ? <span className="error" id={`${key}-error`}>{errors[key]}</span> : null;
+  if (placed) return <PayWithVenmo placed={placed} availability={availability} />;
+
+  const fieldError = (key) => (errors[key] ? <span className="error" id={`${key}-error`}>{errors[key]}</span> : null);
   const describedBy = (key) => (errors[key] ? `${key}-error` : undefined);
 
   if (openDates.length === 0) {
     return (
       <div className="form-card">
-        <p>All upcoming bake days are fully booked. New dates open regularly, so check back soon.</p>
+        <p>All upcoming delivery days are fully booked. New dates open regularly, so check back soon.</p>
       </div>
     );
   }
@@ -84,14 +100,15 @@ export default function OrderForm({ availability }) {
           {fieldError("email")}
         </div>
         <div className="field">
-          <label htmlFor="o-phone">Phone (optional)</label>
-          <input id="o-phone" type="tel" value={form.phone} onChange={update("phone")} autoComplete="tel" />
+          <label htmlFor="o-phone">Phone</label>
+          <input id="o-phone" type="tel" value={form.phone} onChange={update("phone")} autoComplete="tel" required aria-invalid={!!errors.phone} aria-describedby={describedBy("phone")} />
+          {fieldError("phone")}
         </div>
       </div>
 
       <div className="row">
         <div className="field">
-          <label htmlFor="o-date">Date</label>
+          <label htmlFor="o-date">Delivery date</label>
           <select id="o-date" value={form.date} onChange={update("date")} required aria-invalid={!!errors.date} aria-describedby={describedBy("date")}>
             <option value="">Choose a date</option>
             {availability.dates.map((d) => (
@@ -142,9 +159,9 @@ export default function OrderForm({ availability }) {
       {message && <p className="error" role="alert">{message}</p>}
 
       <button className="btn btn-lg" type="submit" disabled={submitting}>
-        {submitting ? "Opening checkout…" : "Continue to payment"}
+        {submitting ? "Placing order…" : "Place order"}
       </button>
-      <p className="note">You'll pay securely with Stripe. Your loaves are held for 30 minutes while you check out.</p>
+      <p className="note">Next, you'll pay with Venmo. Your loaves are held while you pay.</p>
     </form>
   );
 }

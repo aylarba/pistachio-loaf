@@ -9,22 +9,24 @@ const num = (name, fallback) => {
 
 export const config = {
   tableName: process.env.TABLE_NAME,
-  stripeSecretKey: process.env.STRIPE_SECRET_KEY,
-  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-  siteUrl: (process.env.SITE_URL || "http://localhost:5173").replace(/\/$/, ""),
   allowedOrigins: (process.env.ALLOWED_ORIGINS || "http://localhost:5173")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean),
-  ownerEmail: process.env.OWNER_EMAIL,
-  fromEmail: process.env.FROM_EMAIL,
-  productName: process.env.PRODUCT_NAME || "Pistachio & Cardamom Upside-Down Loaf",
+  adminKey: process.env.ADMIN_KEY || "",
+  venmoUsername: (process.env.VENMO_USERNAME || "").replace(/^@/, ""),
+  // Optional email notifications through Amazon SES. Leave FROM_EMAIL empty to turn them off.
+  ownerEmail: process.env.OWNER_EMAIL || "",
+  fromEmail: process.env.FROM_EMAIL || "",
+  productName: process.env.PRODUCT_NAME || "Lowzineh loaf",
   priceCents: num("PRICE_CENTS", 2400),
   deliveryFeeCents: num("DELIVERY_FEE_CENTS", 500),
   dailyCapacity: num("DAILY_CAPACITY", 6),
   leadDays: num("LEAD_DAYS", 2),
   bookingWindowDays: num("BOOKING_WINDOW_DAYS", 21),
   maxPerOrder: num("MAX_PER_ORDER", 4),
+  // How long an unpaid order holds its loaves before they are released.
+  paymentWindowHours: num("PAYMENT_WINDOW_HOURS", 3),
   // 0 = Sunday ... 6 = Saturday
   bakeDays: (process.env.BAKE_DAYS || "0,1,2,3,4,5,6")
     .split(",")

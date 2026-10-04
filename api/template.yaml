@@ -1,27 +1,28 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Pistachio Loaf order API (API Gateway HTTP API + Lambda + DynamoDB + Stripe + SES)
+Description: Lowzineh order API (API Gateway HTTP API + Lambda + DynamoDB, Venmo payments)
 
 Parameters:
-  SiteUrl:
-    Type: String
-    Description: Public URL of the website, e.g. https://yourbakery.com
   AllowedOrigins:
     Type: CommaDelimitedList
-    Default: "http://localhost:5173"
-    Description: Comma-separated origins allowed to call the API (your domain and localhost)
-  StripeSecretKey:
+    Default: "https://aylarba.github.io,http://localhost:5173"
+    Description: Websites allowed to call the API (origin only, no path)
+  VenmoUsername:
+    Type: String
+    Description: Your Venmo Business username, without the @
+  AdminKey:
     Type: String
     NoEcho: true
-  StripeWebhookSecret:
-    Type: String
-    NoEcho: true
+    MinLength: 16
+    Description: A long random password for the admin page (at least 16 characters)
   OwnerEmail:
     Type: String
-    Description: Where new-order notifications go
+    Default: ""
+    Description: Optional. Where new-order emails go (needs FromEmail)
   FromEmail:
     Type: String
-    Description: SES-verified sender address, e.g. orders@yourbakery.com
+    Default: ""
+    Description: Optional. SES-verified sender. Leave empty to turn emails off
   PriceCents:
     Type: Number
     Default: 2400
@@ -34,14 +35,17 @@ Parameters:
   LeadDays:
     Type: Number
     Default: 2
+  PaymentWindowHours:
+    Type: Number
+    Default: 3
   BakeDays:
     Type: String
     Default: "0,1,2,3,4,5,6"
-    Description: Days you bake, 0=Sunday ... 6=Saturday
+    Description: Days you deliver, 0=Sunday ... 6=Saturday
 
 Globals:
   Function:
-    Runtime: nodejs20.x
+    Runtime: nodejs24.x
     Architectures: [arm64]
     MemorySize: 256
     Timeout: 10
@@ -49,16 +53,16 @@ Globals:
     Environment:
       Variables:
         TABLE_NAME: !Ref OrdersTable
-        STRIPE_SECRET_KEY: !Ref StripeSecretKey
-        STRIPE_WEBHOOK_SECRET: !Ref StripeWebhookSecret
-        SITE_URL: !Ref SiteUrl
         ALLOWED_ORIGINS: !Join [",", !Ref AllowedOrigins]
+        VENMO_USERNAME: !Ref VenmoUsername
+        ADMIN_KEY: !Ref AdminKey
         OWNER_EMAIL: !Ref OwnerEmail
         FROM_EMAIL: !Ref FromEmail
         PRICE_CENTS: !Ref PriceCents
         DELIVERY_FEE_CENTS: !Ref DeliveryFeeCents
         DAILY_CAPACITY: !Ref DailyCapacity
         LEAD_DAYS: !Ref LeadDays
+        PAYMENT_WINDOW_HOURS: !Ref PaymentWindowHours
         BAKE_DAYS: !Ref BakeDays
 
 Resources:
@@ -68,7 +72,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins: !Ref AllowedOrigins
         AllowMethods: [GET, POST, OPTIONS]
-        AllowHeaders: [content-type]
+        AllowHeaders: [content-type, x-admin-key]
         MaxAge: 600
       DefaultRouteSettings:
         ThrottlingBurstLimit: 20
@@ -77,14 +81,23 @@ Resources:
   OrdersTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - { AttributeName: PK, AttributeType: S }
         - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
       KeySchema:
         - { AttributeName: PK, KeyType: HASH }
         - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
 
@@ -99,38 +112,50 @@ Resources:
           Type: HttpApi
           Properties: { ApiId: !Ref HttpApi, Path: /availability, Method: GET }
 
-  CheckoutFunction:
+  OrdersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/checkout.handler
-      Policies:
-        - DynamoDBCrudPolicy: { TableName: !Ref OrdersTable }
-      Events:
-        Post:
-          Type: HttpApi
-          Properties: { ApiId: !Ref HttpApi, Path: /checkout, Method: POST }
-
-  WebhookFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/webhook.handler
+      Handler: src/orders.handler
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref OrdersTable }
         - Statement:
-            - Effect: Allow
-              Action: [ses:SendEmail]
-              Resource: "*"
+            - { Effect: Allow, Action: [ses:SendEmail], Resource: "*" }
       Events:
         Post:
           Type: HttpApi
-          Properties: { ApiId: !Ref HttpApi, Path: /stripe/webhook, Method: POST }
+          Properties: { ApiId: !Ref HttpApi, Path: /orders, Method: POST }
+
+  AdminFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/admin.handler
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref OrdersTable }
+        - Statement:
+            - { Effect: Allow, Action: [ses:SendEmail], Resource: "*" }
+      Events:
+        List:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: /admin/orders, Method: GET }
+        Update:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: "/admin/orders/{code}/status", Method: POST }
+
+  ExpireFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/expire.handler
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref OrdersTable }
+      Events:
+        Every15Minutes:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: rate(15 minutes)
 
 Outputs:
   ApiUrl:
-    Description: Base URL of the API (use as VITE_API_URL in web/.env)
+    Description: Base URL of the API. Set it as the VITE_API_URL repository variable on GitHub.
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
-  WebhookUrl:
-    Description: Paste this into Stripe Dashboard > Developers > Webhooks
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/stripe/webhook"
   TableName:
     Value: !Ref OrdersTable

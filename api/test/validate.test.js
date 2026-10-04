@@ -6,6 +6,7 @@ const opts = { allowedDates: ["2026-10-10", "2026-10-11"], maxPerOrder: 4 };
 const base = {
   name: "Sara",
   email: "sara@example.com",
+  phone: "202-555-0134",
   quantity: 2,
   date: "2026-10-10",
   address: { line1: "1 Main St", zip: "20009" },
@@ -14,7 +15,12 @@ const base = {
 test("accepts a valid delivery order", () => {
   const r = validateOrder(base, opts);
   assert.equal(r.ok, true);
-  assert.equal(r.order.method, "delivery");
+  assert.equal(r.order.address.zip, "20009");
+});
+
+test("requires a reachable phone number", () => {
+  assert.ok(validateOrder({ ...base, phone: "" }, opts).errors.phone);
+  assert.ok(validateOrder({ ...base, phone: "12345" }, opts).errors.phone);
 });
 
 test("requires a delivery address", () => {
@@ -46,5 +52,5 @@ test("rejects a bad email", () => {
 
 test("total includes the delivery fee", () => {
   const prices = { priceCents: 2400, deliveryFeeCents: 500 };
-  assert.equal(orderTotalCents({ quantity: 2, method: "delivery" }, prices), 5300);
+  assert.equal(orderTotalCents({ quantity: 2 }, prices), 5300);
 });

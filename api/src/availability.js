@@ -1,5 +1,5 @@
 // GET /availability
-// Returns price, limits, and the remaining loaves for each bookable date.
+// Price, limits, Venmo username, and remaining loaves for each delivery date.
 import { config } from "./lib/config.js";
 import { bookableDates } from "./lib/dates.js";
 import { bookedByDate } from "./lib/db.js";
@@ -19,6 +19,8 @@ export async function handler(event) {
       priceCents: config.priceCents,
       deliveryFeeCents: config.deliveryFeeCents,
       maxPerOrder: config.maxPerOrder,
+      paymentWindowHours: config.paymentWindowHours,
+      venmoUsername: config.venmoUsername,
       dates: dates.map((date) => ({
         date,
         remaining: Math.max(0, config.dailyCapacity - (booked[date] ?? 0)),

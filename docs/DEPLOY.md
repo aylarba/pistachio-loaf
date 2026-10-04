@@ -1,91 +1,94 @@
 # Deployment guide
 
-Order of steps: domain → API → Stripe webhook → email → website → custom domains.
-Do everything in **Stripe test mode** first, place a test order end to end, then switch to live keys.
+The website is already live on GitHub Pages in demo mode. These steps turn on real ordering.
+Nothing here costs money at a small bakery's volume. Venmo Business charges 1.9% + 10¢ per payment.
 
-## 1. Buy a domain
+## 1. Venmo Business profile
 
-Register a domain (Cloudflare, Porkbun, or Namecheap). This guide uses `yourbakery.com`:
+In the Venmo app: **Me → your name at the top → Create a business profile**. Use the name Lowzineh and pick a username (e.g. `lowzineh`). Payments to this profile stay separate from your personal Venmo.
 
-- `yourbakery.com` → website (Vercel)
-- `api.yourbakery.com` → API (AWS)
-
-## 2. Deploy the API to AWS
-
-Prerequisites: an AWS account, the [AWS CLI](https://docs.aws.amazon.com/cli/) configured (`aws configure`), and the [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html).
+## 2. Tools on your Mac (one time)
 
 ```bash
-cd api
-npm install
+brew install awscli aws-sam-cli
+```
+
+Create an AWS account at aws.amazon.com, then create access keys for the CLI:
+AWS console → your name (top right) → **Security credentials** → **Create access key** (choose "Command Line Interface").
+
+```bash
+aws configure
+# AWS Access Key ID:     (paste)
+# AWS Secret Access Key: (paste)
+# Default region name:   us-east-1
+# Default output format: json
+```
+
+Keep the keys private; never commit or share them.
+
+## 3. Make an admin key
+
+This is the password for your order dashboard. Generate a long random one and save it in your password manager:
+
+```bash
+openssl rand -base64 24
+```
+
+## 4. Deploy the API
+
+```bash
+cd ~/Documents/pistachio-loaf/api
 sam build
 sam deploy --guided
 ```
 
-The guided deploy asks for each parameter:
+Answer the prompts:
 
-| Parameter | Example |
+| Prompt | Answer |
 |---|---|
-| Stack name | `pistachio-loaf` |
-| Region | `us-east-1` |
-| SiteUrl | `https://yourbakery.com` |
-| AllowedOrigins | `https://yourbakery.com,https://www.yourbakery.com,http://localhost:5173` |
-| StripeSecretKey | `sk_test_...` (Stripe Dashboard → Developers → API keys) |
-| StripeWebhookSecret | `whsec_placeholder` for now (step 3 gives the real one) |
-| OwnerEmail | where you want order notifications |
-| FromEmail | `orders@yourbakery.com` |
+| Stack Name | `lowzineh` |
+| AWS Region | `us-east-1` |
+| AllowedOrigins | `https://aylarba.github.io,http://localhost:5173` |
+| VenmoUsername | your Venmo Business username, without `@` |
+| AdminKey | the key from step 3 |
+| OwnerEmail / FromEmail | press Enter to leave empty (email is optional) |
 | PriceCents | `2400` = $24.00 |
 | DeliveryFeeCents | `500` = $5.00 |
 | DailyCapacity | loaves you can bake per day |
-| LeadDays | days of notice you need |
-| BakeDays | `5,6` = Friday and Saturday only (0 = Sunday) |
+| LeadDays | days of notice you need, e.g. `2` |
+| PaymentWindowHours | how long unpaid orders hold loaves, e.g. `3` |
+| BakeDays | days you deliver, e.g. `5,6` = Friday and Saturday (0 = Sunday) |
+| Confirm changes before deploy | `y` |
+| Allow SAM CLI IAM role creation | `y` |
+| Functions have no authentication. Is this okay? | `y` for each (the admin function checks the admin key itself) |
+| Save arguments to configuration file | `y` |
 
-Note the outputs `ApiUrl` and `WebhookUrl`.
+When it finishes, copy the **ApiUrl** from the Outputs.
 
-## 3. Connect the Stripe webhook
+To change prices or days later: `sam deploy --parameter-overrides PriceCents=2600` (other values are remembered).
 
-1. Stripe Dashboard → Developers → Webhooks → Add endpoint.
-2. Endpoint URL: the `WebhookUrl` output.
-3. Events: `checkout.session.completed` and `checkout.session.expired`.
-4. Copy the signing secret (`whsec_...`) and redeploy with it:
+## 5. Connect the website to the API
 
-```bash
-sam deploy --parameter-overrides StripeWebhookSecret=whsec_your_real_secret
-```
+GitHub → your repo → **Settings → Secrets and variables → Actions → Variables tab → New repository variable**:
 
-(`sam deploy` remembers the other values in `samconfig.toml`, which is git-ignored.)
+- Name: `VITE_API_URL`
+- Value: the ApiUrl from step 4
 
-## 4. Set up email (Amazon SES)
+Then **Actions → Deploy website to GitHub Pages → Run workflow**. When it finishes, the order form is live.
 
-1. SES console → Identities → Create identity → Domain → `yourbakery.com`. Add the DNS records it shows at your registrar.
-2. New SES accounts are in a sandbox and can only email verified addresses. Request production access (SES → Account dashboard) so customers receive receipts.
+## 6. Test an order end to end
 
-## 5. Deploy the website (Vercel)
+1. Place an order on the site with your own details.
+2. Tap **Pay with Venmo** and send it from your personal Venmo to your business profile (or have a friend do it).
+3. Open `https://aylarba.github.io/pistachio-loaf/#admin`, enter your admin key, and mark the order paid, then delivered.
+4. Place another order and don't pay. After the hold time it moves to **Expired** and the loaves become available again.
 
-1. Push this repo to GitHub.
-2. In [Vercel](https://vercel.com): Add New → Project → import the repo.
-3. Root directory: `web`. Framework: Vite.
-4. Environment variable: `VITE_API_URL` = your `ApiUrl` (or `https://api.yourbakery.com` after step 6).
-5. Deploy. Every push to `main` redeploys automatically.
+## Running orders day to day
 
-## 6. Custom domains
+- When a Venmo payment arrives, its note shows the order code (`LZ-…`). Find it under **Waiting for Venmo** and click **Mark paid**.
+- **Paid, to deliver** is your delivery list, sorted by date, with addresses and phone numbers.
+- To cancel a paid order, click **Cancel** and refund the customer in Venmo.
 
-**Website:** Vercel → Project → Settings → Domains → add `yourbakery.com` and `www.yourbakery.com`. Add the DNS records Vercel shows at your registrar. HTTPS is automatic.
+## Optional: order emails
 
-**API:**
-
-1. AWS Certificate Manager (same region as the API) → request a public certificate for `api.yourbakery.com` → validate with the DNS record it shows.
-2. API Gateway → Custom domain names → create `api.yourbakery.com` with that certificate.
-3. API mappings → map it to the `pistachio-loaf` HTTP API, stage `$default`.
-4. At your registrar, add a CNAME: `api` → the API Gateway domain name shown on that page.
-5. Update Vercel's `VITE_API_URL` to `https://api.yourbakery.com` and redeploy the site. Update the Stripe webhook URL to `https://api.yourbakery.com/stripe/webhook`.
-
-## 7. Go live
-
-- Place a full test order with Stripe's test card `4242 4242 4242 4242`. Check that the order appears in DynamoDB as `paid` and both emails arrive.
-- Let a checkout expire (or wait 30 minutes) and confirm the day's capacity is released.
-- Switch to live Stripe keys: redeploy with the live `StripeSecretKey`, create a live-mode webhook, and redeploy with its secret.
-- Fill in `web/src/site.js`, add your photo, and retake the screenshots in `docs/screenshots/`.
-
-## Costs at small scale
-
-Lambda, API Gateway, and DynamoDB are effectively free at a few hundred orders a month. Expect the domain (~$10–15/year), Stripe fees (2.9% + 30¢ per card payment), and $99/year for the Apple Developer Program if you publish the app.
+Email needs a domain verified in Amazon SES. If you buy one later, verify it in SES, request production access, and redeploy with `FromEmail=orders@yourdomain.com` and `OwnerEmail=<your Gmail>`.

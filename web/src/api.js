@@ -10,34 +10,49 @@ function sampleAvailability() {
     dates.push({ date: d.toISOString().slice(0, 10), remaining: 6 });
     d.setDate(d.getDate() + 1);
   }
-  return { priceCents: 2400, deliveryFeeCents: 500, maxPerOrder: 4, dates };
+  return { priceCents: 2400, deliveryFeeCents: 500, maxPerOrder: 4, paymentWindowHours: 3, venmoUsername: "", dates };
 }
 
-export async function getAvailability() {
-  if (demoMode) return sampleAvailability();
-  const res = await fetch(`${API_URL}/availability`);
-  if (!res.ok) throw new Error("Could not load available dates.");
-  return res.json();
-}
-
-export async function startCheckout(order) {
-  if (demoMode) {
-    const err = new Error("Online ordering isn't open yet. Email us to order.");
-    err.fields = {};
-    throw err;
-  }
-  const res = await fetch(`${API_URL}/checkout`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(order),
-  });
+async function request(path, options = {}) {
+  const res = await fetch(`${API_URL}${path}`, options);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error || "Something went wrong. Try again.");
     err.fields = data.fields || {};
+    err.status = res.status;
     throw err;
   }
-  return data; // { checkoutUrl, orderId }
+  return data;
+}
+
+export async function getAvailability() {
+  if (demoMode) return sampleAvailability();
+  return request("/availability");
+}
+
+export async function placeOrder(order) {
+  if (demoMode) {
+    const err = new Error("Online ordering opens soon. Follow us on Instagram for the launch.");
+    err.fields = {};
+    throw err;
+  }
+  return request("/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(order),
+  }); // { code, totalCents, expiresAt, venmoUsername, venmoUrl }
+}
+
+export function adminList(key, status) {
+  return request(`/admin/orders?status=${encodeURIComponent(status)}`, { headers: { "x-admin-key": key } });
+}
+
+export function adminSetStatus(key, code, status) {
+  return request(`/admin/orders/${encodeURIComponent(code)}/status`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-admin-key": key },
+    body: JSON.stringify({ status }),
+  });
 }
 
 export const money = (cents) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}`;
