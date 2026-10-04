@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Pistachio Loaf order API (API Gateway HTTP API + Lambda + DynamoDB + Stripe + SES)
+
+Parameters:
+  SiteUrl:
+    Type: String
+    Description: Public URL of the website, e.g. https://yourbakery.com
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: "http://localhost:5173"
+    Description: Comma-separated origins allowed to call the API (your domain and localhost)
+  StripeSecretKey:
+    Type: String
+    NoEcho: true
+  StripeWebhookSecret:
+    Type: String
+    NoEcho: true
+  OwnerEmail:
+    Type: String
+    Description: Where new-order notifications go
+  FromEmail:
+    Type: String
+    Description: SES-verified sender address, e.g. orders@yourbakery.com
+  PriceCents:
+    Type: Number
+    Default: 2400
+  DeliveryFeeCents:
+    Type: Number
+    Default: 500
+  DailyCapacity:
+    Type: Number
+    Default: 6
+  LeadDays:
+    Type: Number
+    Default: 2
+  BakeDays:
+    Type: String
+    Default: "0,1,2,3,4,5,6"
+    Description: Days you bake, 0=Sunday ... 6=Saturday
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 10
+    CodeUri: ./
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref OrdersTable
+        STRIPE_SECRET_KEY: !Ref StripeSecretKey
+        STRIPE_WEBHOOK_SECRET: !Ref StripeWebhookSecret
+        SITE_URL: !Ref SiteUrl
+        ALLOWED_ORIGINS: !Join [",", !Ref AllowedOrigins]
+        OWNER_EMAIL: !Ref OwnerEmail
+        FROM_EMAIL: !Ref FromEmail
+        PRICE_CENTS: !Ref PriceCents
+        DELIVERY_FEE_CENTS: !Ref DeliveryFeeCents
+        DAILY_CAPACITY: !Ref DailyCapacity
+        LEAD_DAYS: !Ref LeadDays
+        BAKE_DAYS: !Ref BakeDays
+
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowMethods: [GET, POST, OPTIONS]
+        AllowHeaders: [content-type]
+        MaxAge: 600
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  AvailabilityFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/availability.handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref OrdersTable }
+      Events:
+        Get:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: /availability, Method: GET }
+
+  CheckoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/checkout.handler
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref OrdersTable }
+      Events:
+        Post:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: /checkout, Method: POST }
+
+  WebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/webhook.handler
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref OrdersTable }
+        - Statement:
+            - Effect: Allow
+              Action: [ses:SendEmail]
+              Resource: "*"
+      Events:
+        Post:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: /stripe/webhook, Method: POST }
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the API (use as VITE_API_URL in web/.env)
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  WebhookUrl:
+    Description: Paste this into Stripe Dashboard > Developers > Webhooks
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/stripe/webhook"
+  TableName:
+    Value: !Ref OrdersTable

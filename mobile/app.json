@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Pistachio Loaf",
+    "slug": "pistachio-loaf",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "../web/public/icon-512.png",
+    "splash": { "backgroundColor": "#F4F1E8" },
+    "ios": {
+      "bundleIdentifier": "com.yourbakery.pistachioloaf",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.yourbakery.pistachioloaf"
+    }
+  }
+}
