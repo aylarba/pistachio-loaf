@@ -7,7 +7,6 @@ const initial = {
   phone: "",
   quantity: 1,
   date: "",
-  method: "pickup",
   line1: "",
   line2: "",
   zip: "",
@@ -26,8 +25,8 @@ export default function OrderForm({ availability }) {
 
   const total = useMemo(() => {
     const loaves = form.quantity * availability.priceCents;
-    return loaves + (form.method === "delivery" ? availability.deliveryFeeCents : 0);
-  }, [form.quantity, form.method, availability]);
+    return loaves + availability.deliveryFeeCents;
+  }, [form.quantity, availability]);
 
   const update = (field) => (e) => {
     const value = field === "quantity" ? Number(e.target.value) : e.target.value;
@@ -46,9 +45,8 @@ export default function OrderForm({ availability }) {
         phone: form.phone,
         quantity: form.quantity,
         date: form.date,
-        method: form.method,
         notes: form.notes,
-        address: form.method === "delivery" ? { line1: form.line1, line2: form.line2, zip: form.zip } : undefined,
+        address: { line1: form.line1, line2: form.line2, zip: form.zip },
       };
       const { checkoutUrl } = await startCheckout(payload);
       window.location.assign(checkoutUrl);
@@ -115,33 +113,21 @@ export default function OrderForm({ availability }) {
         </div>
       </div>
 
-      <fieldset className="field">
-        <legend>Pickup or delivery</legend>
-        <div className="choice">
-          <label><input type="radio" name="method" value="pickup" checked={form.method === "pickup"} onChange={update("method")} /> Pickup</label>
-          <label><input type="radio" name="method" value="delivery" checked={form.method === "delivery"} onChange={update("method")} /> Delivery within DC</label>
+      <div className="field">
+        <label htmlFor="o-line1">Delivery address (Washington, DC)</label>
+        <input id="o-line1" value={form.line1} onChange={update("line1")} autoComplete="address-line1" aria-invalid={!!errors.address} aria-describedby={describedBy("address")} />
+      </div>
+      <div className="row">
+        <div className="field">
+          <label htmlFor="o-line2">Apt or unit (optional)</label>
+          <input id="o-line2" value={form.line2} onChange={update("line2")} autoComplete="address-line2" />
         </div>
-      </fieldset>
-
-      {form.method === "delivery" && (
-        <>
-          <div className="field">
-            <label htmlFor="o-line1">Street address</label>
-            <input id="o-line1" value={form.line1} onChange={update("line1")} autoComplete="address-line1" aria-invalid={!!errors.address} aria-describedby={describedBy("address")} />
-          </div>
-          <div className="row">
-            <div className="field">
-              <label htmlFor="o-line2">Apt or unit (optional)</label>
-              <input id="o-line2" value={form.line2} onChange={update("line2")} autoComplete="address-line2" />
-            </div>
-            <div className="field">
-              <label htmlFor="o-zip">ZIP code</label>
-              <input id="o-zip" inputMode="numeric" value={form.zip} onChange={update("zip")} autoComplete="postal-code" aria-invalid={!!errors.address} aria-describedby={describedBy("address")} />
-            </div>
-          </div>
-          {fieldError("address")}
-        </>
-      )}
+        <div className="field">
+          <label htmlFor="o-zip">ZIP code</label>
+          <input id="o-zip" inputMode="numeric" value={form.zip} onChange={update("zip")} autoComplete="postal-code" aria-invalid={!!errors.address} aria-describedby={describedBy("address")} />
+        </div>
+      </div>
+      {fieldError("address")}
 
       <div className="field">
         <label htmlFor="o-notes">Notes (optional)</label>
@@ -149,7 +135,7 @@ export default function OrderForm({ availability }) {
       </div>
 
       <div className="total">
-        <span>Total</span>
+        <span>Total, including {money(availability.deliveryFeeCents)} delivery</span>
         <strong>{money(total)}</strong>
       </div>
 

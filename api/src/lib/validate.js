@@ -14,7 +14,6 @@ export function validateOrder(body, { allowedDates, maxPerOrder }) {
   const email = clean(b.email, 200).toLowerCase();
   const phone = clean(b.phone, 30);
   const date = clean(b.date, 10);
-  const method = clean(b.method, 20);
   const notes = clean(b.notes, 500);
   const quantity = Number(b.quantity);
 
@@ -24,20 +23,17 @@ export function validateOrder(body, { allowedDates, maxPerOrder }) {
     errors.quantity = `Choose between 1 and ${maxPerOrder} loaves.`;
   }
   if (!allowedDates.includes(date)) errors.date = "Choose one of the available dates.";
-  if (method !== "pickup" && method !== "delivery") errors.method = "Choose pickup or delivery.";
-
-  let address = null;
-  if (method === "delivery") {
-    const a = b.address && typeof b.address === "object" ? b.address : {};
-    address = {
-      line1: clean(a.line1, 120),
-      line2: clean(a.line2, 120),
-      zip: clean(a.zip, 10),
-    };
-    if (!address.line1) errors.address = "Enter a delivery address.";
-    else if (!DC_ZIP_RE.test(address.zip)) {
-      errors.address = "Delivery is available within Washington, DC only. Enter a DC ZIP code.";
-    }
+  // Delivery only (no pickup). Every order needs a DC address.
+  const method = "delivery";
+  const a = b.address && typeof b.address === "object" ? b.address : {};
+  const address = {
+    line1: clean(a.line1, 120),
+    line2: clean(a.line2, 120),
+    zip: clean(a.zip, 10),
+  };
+  if (!address.line1) errors.address = "Enter a delivery address.";
+  else if (!DC_ZIP_RE.test(address.zip)) {
+    errors.address = "We deliver within Washington, DC only. Enter a DC ZIP code.";
   }
 
   const ok = Object.keys(errors).length === 0;

@@ -13,7 +13,7 @@ function summary(order) {
     order.phone ? `Phone: ${order.phone}` : null,
     `Loaves: ${order.quantity}`,
     `Date: ${order.date}`,
-    `Method: ${order.method === "delivery" ? "Delivery (DC)" : "Pickup"}`,
+    `Delivery: Washington, DC`,
     order.address ? `Address: ${order.address.line1} ${order.address.line2 || ""}, Washington, DC ${order.address.zip}` : null,
     order.notes ? `Notes: ${order.notes}` : null,
     `Total paid: ${money(order.totalCents)}`,
@@ -27,6 +27,8 @@ async function send(to, subject, text) {
     new SendEmailCommand({
       FromEmailAddress: config.fromEmail,
       Destination: { ToAddresses: [to] },
+      // Replies go to the bakery's inbox (e.g. a Gmail address), not the SES sender.
+      ReplyToAddresses: config.ownerEmail ? [config.ownerEmail] : undefined,
       Content: { Simple: { Subject: { Data: subject }, Body: { Text: { Data: text } } } },
     })
   );

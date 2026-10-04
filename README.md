@@ -12,7 +12,7 @@ A full-stack ordering system for a single-product home bakery in Washington, DC:
 
 ## What it does
 
-- Customers pick a bake date, quantity, and pickup or DC delivery, then pay through Stripe Checkout.
+- Customers pick a delivery date, quantity, and DC address, then pay through Stripe Checkout.
 - The API enforces a daily baking capacity with an atomic DynamoDB counter, so a day can't be oversold even if two people check out at once.
 - Loaves are held for 30 minutes during checkout. If payment isn't completed, a Stripe webhook releases them automatically.
 - Paid orders trigger confirmation emails to the customer and the baker through Amazon SES.
@@ -65,7 +65,7 @@ flowchart LR
 | PK | SK | Attributes |
 |---|---|---|
 | `DAY#2026-10-10` | `CAPACITY` | `booked` (loaves reserved that day) |
-| `ORDER#<uuid>` | `ORDER` | customer, date, quantity, method, address, total, `status`, Stripe IDs |
+| `ORDER#<uuid>` | `ORDER` | customer, date, quantity, address, total, `status`, Stripe IDs |
 
 ## Tech stack
 
@@ -118,7 +118,7 @@ Step-by-step instructions for AWS, Stripe, SES, Vercel, and the custom domain ar
 
 ## Configuration
 
-Shop details (name, pickup info, registry number, photo) are in [`web/src/site.js`](web/src/site.js). Price, delivery fee, daily capacity, lead time, and bake days are API parameters set at deploy time in [`api/template.yaml`](api/template.yaml).
+Shop details (name, delivery days, registry number, photo) are in [`web/src/site.js`](web/src/site.js). Price, delivery fee, daily capacity, lead time, and bake days are API parameters set at deploy time in [`api/template.yaml`](api/template.yaml).
 
 Secrets (Stripe keys) are passed as deploy parameters and are never committed. See `.gitignore`.
 

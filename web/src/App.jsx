@@ -92,7 +92,7 @@ export default function App() {
             <h2>The details</h2>
             <dl className="facts">
               <div className="panel"><dt>Size</dt><dd>8 x 4 inch loaf, about 6 slices</dd></div>
-              <div className="panel"><dt>Net weight</dt><dd>{site.netWeight}</dd></div>
+              <div className="panel"><dt>Delivery</dt><dd>Anywhere in Washington, DC</dd></div>
               <div className="panel"><dt>Keeps</dt><dd>3 to 4 days, wrapped, at room temperature</dd></div>
               <div className="panel"><dt>Serve with</dt><dd>Tea, coffee, or plain yogurt</dd></div>
             </dl>
@@ -103,10 +103,9 @@ export default function App() {
           <div className="wrap">
             <div className="order-text">
               <h2>Order a loaf</h2>
-              <p>Every loaf is baked to order. Pickup and delivery are available within Washington, DC only.</p>
+              <p>Every loaf is baked to order and delivered to your door, anywhere in Washington, DC.</p>
               <p>
-                <strong>Pickup:</strong> {site.pickup}<br />
-                <strong>Delivery:</strong> {site.delivery}
+                <strong>Delivery:</strong> {site.deliveryDays}
                 {availability?.deliveryFeeCents ? ` (${money(availability.deliveryFeeCents)} fee)` : ""}
               </p>
               {demoMode && (

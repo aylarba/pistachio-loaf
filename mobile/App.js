@@ -45,7 +45,7 @@ function Field({ label, error, ...props }) {
 export default function App() {
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState("");
-  const [form, setForm] = useState({ name: "", email: "", phone: "", date: "", quantity: 1, method: "pickup", line1: "", line2: "", zip: "", notes: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", date: "", quantity: 1, line1: "", line2: "", zip: "", notes: "" });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,8 +62,8 @@ export default function App() {
   const selected = data?.dates.find((d) => d.date === form.date);
   const maxQty = data ? Math.min(data.maxPerOrder, selected ? selected.remaining : data.maxPerOrder) : 1;
   const total = useMemo(
-    () => (data ? form.quantity * data.priceCents + (form.method === "delivery" ? data.deliveryFeeCents : 0) : 0),
-    [data, form.quantity, form.method]
+    () => (data ? form.quantity * data.priceCents + data.deliveryFeeCents : 0),
+    [data, form.quantity]
   );
 
   async function checkout() {
@@ -74,8 +74,8 @@ export default function App() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name: form.name, email: form.email, phone: form.phone, date: form.date,
-          quantity: form.quantity, method: form.method, notes: form.notes,
-          address: form.method === "delivery" ? { line1: form.line1, line2: form.line2, zip: form.zip } : undefined,
+          quantity: form.quantity, notes: form.notes,
+          address: { line1: form.line1, line2: form.line2, zip: form.zip },
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -120,22 +120,12 @@ export default function App() {
                 ))}
               </View>
 
-              <Text style={[s.label, s.gap]}>Pickup or delivery</Text>
-              <View style={s.wrapRow}>
-                <Choice label="Pickup" selected={form.method === "pickup"} onPress={() => set("method", "pickup")} />
-                <Choice label="Delivery within DC" selected={form.method === "delivery"} onPress={() => set("method", "delivery")} />
-              </View>
-
               <Field label="Name" value={form.name} onChangeText={(v) => set("name", v)} autoComplete="name" error={errors.name} />
               <Field label="Email" value={form.email} onChangeText={(v) => set("email", v)} autoComplete="email" keyboardType="email-address" autoCapitalize="none" error={errors.email} />
               <Field label="Phone (optional)" value={form.phone} onChangeText={(v) => set("phone", v)} autoComplete="tel" keyboardType="phone-pad" />
-              {form.method === "delivery" ? (
-                <>
-                  <Field label="Street address" value={form.line1} onChangeText={(v) => set("line1", v)} autoComplete="street-address" error={errors.address} />
-                  <Field label="Apt or unit (optional)" value={form.line2} onChangeText={(v) => set("line2", v)} />
-                  <Field label="ZIP code" value={form.zip} onChangeText={(v) => set("zip", v)} keyboardType="number-pad" autoComplete="postal-code" />
-                </>
-              ) : null}
+              <Field label="Delivery address (Washington, DC)" value={form.line1} onChangeText={(v) => set("line1", v)} autoComplete="street-address" error={errors.address} />
+              <Field label="Apt or unit (optional)" value={form.line2} onChangeText={(v) => set("line2", v)} />
+              <Field label="ZIP code" value={form.zip} onChangeText={(v) => set("zip", v)} keyboardType="number-pad" autoComplete="postal-code" />
               <Field label="Notes (optional)" value={form.notes} onChangeText={(v) => set("notes", v)} multiline />
 
               <View style={s.total}><Text style={s.body}>Total</Text><Text style={s.totalNum}>{money(total)}</Text></View>
@@ -143,7 +133,7 @@ export default function App() {
               <Pressable style={[s.btn, busy && { opacity: 0.7 }]} onPress={checkout} disabled={busy} accessibilityRole="button">
                 <Text style={s.btnText}>{busy ? "Opening checkout…" : "Continue to payment"}</Text>
               </Pressable>
-              <Text style={s.note}>Pickup and delivery within Washington, DC only.</Text>
+              <Text style={s.note}>Delivery within Washington, DC only. Total includes delivery.</Text>
             </>
           )}
         </View>

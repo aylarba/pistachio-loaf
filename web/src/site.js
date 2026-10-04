@@ -4,9 +4,8 @@ export const site = {
   // Put your photo in web/public/ (e.g. loaf.jpg) and set its path here. Leave "" for the placeholder.
   photo: "",
   photoAlt: "Pistachio cardamom loaf topped with caramelized sliced almonds",
-  netWeight: "[NET WEIGHT]",
-  pickup: "[YOUR PICKUP AREA AND HOURS]",
-  delivery: "[YOUR DC DELIVERY DAYS]",
+  // e.g. "Fridays and Saturdays, 10am to 4pm"
+  deliveryDays: "[YOUR DC DELIVERY DAYS]",
   cottageFoodId: "[YOUR DC REGISTRY NUMBER]",
   email: "[YOUR EMAIL]",
   instagram: "", // e.g. "https://instagram.com/yourbakery"

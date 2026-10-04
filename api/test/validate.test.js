@@ -3,12 +3,22 @@ import assert from "node:assert/strict";
 import { validateOrder, orderTotalCents } from "../src/lib/validate.js";
 
 const opts = { allowedDates: ["2026-10-10", "2026-10-11"], maxPerOrder: 4 };
-const base = { name: "Sara", email: "sara@example.com", quantity: 2, date: "2026-10-10", method: "pickup" };
+const base = {
+  name: "Sara",
+  email: "sara@example.com",
+  quantity: 2,
+  date: "2026-10-10",
+  address: { line1: "1 Main St", zip: "20009" },
+};
 
-test("accepts a valid pickup order", () => {
+test("accepts a valid delivery order", () => {
   const r = validateOrder(base, opts);
   assert.equal(r.ok, true);
-  assert.equal(r.order.quantity, 2);
+  assert.equal(r.order.method, "delivery");
+});
+
+test("requires a delivery address", () => {
+  assert.ok(validateOrder({ ...base, address: undefined }, opts).errors.address);
 });
 
 test("rejects dates outside the bookable list", () => {
@@ -24,9 +34,9 @@ test("rejects too many loaves", () => {
 });
 
 test("delivery requires a DC ZIP code", () => {
-  const md = validateOrder({ ...base, method: "delivery", address: { line1: "1 Main St", zip: "20910" } }, opts);
+  const md = validateOrder({ ...base, address: { line1: "1 Main St", zip: "20910" } }, opts);
   assert.equal(md.ok, false);
-  const dc = validateOrder({ ...base, method: "delivery", address: { line1: "1 Main St", zip: "20009" } }, opts);
+  const dc = validateOrder(base, opts);
   assert.equal(dc.ok, true);
 });
 
@@ -34,8 +44,7 @@ test("rejects a bad email", () => {
   assert.ok(validateOrder({ ...base, email: "nope" }, opts).errors.email);
 });
 
-test("total includes delivery fee only for delivery", () => {
+test("total includes the delivery fee", () => {
   const prices = { priceCents: 2400, deliveryFeeCents: 500 };
-  assert.equal(orderTotalCents({ quantity: 2, method: "pickup" }, prices), 4800);
   assert.equal(orderTotalCents({ quantity: 2, method: "delivery" }, prices), 5300);
 });
