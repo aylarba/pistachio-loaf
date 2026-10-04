@@ -123,15 +123,6 @@ export default function App() {
         </section>
       </main>
 
-      <footer className="wrap">
-        <p><strong>Made by a cottage food business that is not subject to the District of Columbia's food safety regulations.</strong></p>
-        <p>Cottage Food Business ID: {site.cottageFoodId}</p>
-        <p>
-          {site.email}
-          {" | "}
-          {site.instagram ? <a href={site.instagram}>{site.instagramHandle}</a> : site.instagramHandle}
-        </p>
-      </footer>
     </>
   );
 }

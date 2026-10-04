@@ -78,8 +78,6 @@ input[type="radio"] { width: 20px; height: 20px; accent-color: var(--pistachio);
 .note { font-size: 14px; color: var(--muted); }
 .error { color: var(--rose); font-size: 15px; font-weight: 500; }
 
-footer { padding-top: 40px; padding-bottom: 56px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: #3F473F; }
-
 @media (max-width: 560px) {
   .wrap { padding-left: 20px; padding-right: 20px; }
   .photo { height: 300px; }
