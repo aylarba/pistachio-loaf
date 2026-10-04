@@ -1,8 +1,8 @@
 // Everything you'll want to edit about the shop lives here.
 export const site = {
   bakeryName: "[YOUR BAKERY NAME]",
-  // Put your photo in web/public/ (e.g. loaf.jpg) and set its path here. Leave "" for the placeholder.
-  photo: "",
+  // Photos live in web/public/. Leave "" to show a placeholder instead.
+  photo: "loaf.jpg",
   photoAlt: "Pistachio cardamom loaf topped with caramelized sliced almonds",
   // e.g. "Fridays and Saturdays, 10am to 4pm"
   deliveryDays: "[YOUR DC DELIVERY DAYS]",

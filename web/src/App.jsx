@@ -58,7 +58,7 @@ export default function App() {
             </div>
           </div>
           <div className="photo">
-            {site.photo ? <img src={site.photo} alt={site.photoAlt} /> : <span>[Photo of your loaf, almond side up]</span>}
+            {site.photo ? <img src={`${import.meta.env.BASE_URL}${site.photo}`} alt={site.photoAlt} /> : <span>[Photo of your loaf, almond side up]</span>}
           </div>
         </section>
 
