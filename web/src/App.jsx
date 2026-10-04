@@ -24,7 +24,7 @@ export default function App() {
   return (
     <>
       <header className="wrap site-header">
-        <a className="brand" href="/">{site.bakeryName}</a>
+        <a className="brand" href={import.meta.env.BASE_URL}>{site.bakeryName}</a>
         <nav aria-label="Main">
           <a href="#story">The loaf</a>
           <a href="#ingredients">Ingredients</a>
